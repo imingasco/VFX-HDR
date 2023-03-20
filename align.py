@@ -63,7 +63,7 @@ def get_shift(ref_image, shift_image, level):
 
 def align(images, max_offset=64):
     # Let's pick the first image as reference image
-    result = [images[0]]
+    result = [images[0].astype(float) / 255]
     pyramid_level = int(np.log2(max_offset))
     for image in images[1:]:
         rshift, cshift = get_shift(images[0], image, pyramid_level)
@@ -93,7 +93,6 @@ def test():
         img *= 255
         img = img.astype(int)
         cv2.imwrite(f"exposures/align_img{i+1:02}.jpg", img)
-
 
 if __name__ == "__main__":
     test()
