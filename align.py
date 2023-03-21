@@ -68,7 +68,7 @@ def align(images, max_offset=64, filename=None):
     pyramid_level = int(np.log2(max_offset))
     for image in images[1:]:
         rshift, cshift = get_shift(images[0], image, pyramid_level)
-        print(rshift, cshift)
+        # print(rshift, cshift)
         # Layer-wise shift
         image_t = np.transpose(image, (2, 0, 1))
         output_image = np.zeros(image_t.shape)
@@ -99,6 +99,7 @@ def test():
     base = "pic2"
     images = []
     images.append(cv2.imread(os.path.join(base, "1.JPG")))
+    print(f"fuck {images[0].shape}")
     filename = ["1.JPG"]
     for f in sorted(os.listdir(base)):
         if f[-3:] != "txt" and f != "1.jpg" and f != "1.JPG":
