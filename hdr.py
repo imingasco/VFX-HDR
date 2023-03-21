@@ -50,7 +50,7 @@ def gCurve(Z, log_t, l, w):
     for i in range(3):
         g, _ = gsolve(Z[:, :, i], log_t, l, w)
         gs.append(g)
-    
+
     plt.plot(gs[0], np.arange(256), "b")
     plt.plot(gs[1], np.arange(256), "g")
     plt.plot(gs[2], np.arange(256), "r")
@@ -94,7 +94,7 @@ def radianceMap(imgs, log_t, l, g, w):
 def HDR(imgs, expTimes):
     imgs = np.array(imgs, dtype=np.uint8)
     samplePoints = 100
-    l = 35
+    l = 40
     Z_b = sample(imgs[:, :, :, 0], samplePoints)
     Z_g = sample(imgs[:, :, :, 1], samplePoints)
     Z_r = sample(imgs[:, :, :, 2], samplePoints)
@@ -108,24 +108,41 @@ def HDR(imgs, expTimes):
     return rad_map
 
 def test():
-    img_dir = "img/memorial"
+    # img_dir = "./Memorial"
+    img_dir = "./pic2"
     images = []
-    exp_time = [0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0]
-    # exp_time = [0.06666667, 0.00625, 0.5, 0.003125, 0.25, 0.025, 0.0015625, 0.0125, 0.0125, 1, 15, 2, 20, 30, 4, 8]
+    # exp_time = [0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0]
+    exp_time = [0.06666667, 0.00625, 0.5, 0.003125, 0.25, 0.025, 0.0015625, 0.0125, 0.0125, 1.0, 15.0, 2.0, 20.0, 30.0, 4.0, 8.0]
     files = [os.path.join(img_dir, filename) for filename in sorted(os.listdir(img_dir))]
+    print(files)
+    # input('>')
     for f in files:
         ext = f.split(".")[-1]
         if ext == "png" or ext == "jpg" or ext == "JPG":
             images.append(cv2.imread(f))
     print(f"fuck {images[0].shape}")
-    exp_time = [1 / t for t in exp_time]
+    # exp_time = [1 / t for t in exp_time]
     aligned_images = align.align(images)
-    print(aligned_images[0].shape)
     rad_map = HDR(aligned_images, exp_time)
-    print(rad_map.shape)
-    plt.imshow(np.log(rad_map[:, :, 1]))
+    cv2.imwrite("rad_map.hdr", rad_map)
+    res = np.log(cv2.cvtColor(rad_map.astype(np.float32), cv2.COLOR_RGB2GRAY))
+    # res = cv2.cvtColor(((res + 10 ) / 20  * 255).astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    # res = ((res + 10 ) / 20  * 255).astype(np.uint8)
+    plt.imshow(res, cmap='jet')
+    plt.colorbar()
     plt.show()
-    cv2.imwrite("rad_map.png", np.log(rad_map)[:, :, 1])
+
+    # tonemapDrago = cv2.createTonemapDrago(1.0, 0.7)
+    # res = tonemapDrago.process(res)
+    # res = 3 * res
+    # cv2.imwrite("ldr-Drago.jpg", res * 255)
+    # print(res.dtype)
+    # print(type(res))
+    # print(np.min(res[:, :, 0]), np.max(res[:, :, 0]))
+    # print(np.min(res[:, :, 1]), np.max(res[:, :, 1]))
+    # print(np.min(res[:, :, 2]), np.max(res[:, :, 2]))
+    # cv2.imwrite("rad_map.png", res) # -10 ~ 10 -> 0 ~ 20 / 20 * 255
+
 
 if __name__ == "__main__":
     test()
