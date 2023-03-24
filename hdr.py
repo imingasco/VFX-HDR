@@ -1,15 +1,31 @@
-import matplotlib.pyplot as plt
-import cv2
 import os
-import numpy as np
+import cv2
 import math
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+
 import align
+
+BLUE = 0
+GREEN = 1
+RED = 2
 
 def sample(imgs, N=100):
     samples = []
     for img in imgs:
         samples.append(cv2.resize(img,(10, 10)).flatten())
-    return np.array(samples, dtype = np.uint8)
+    return np.array(samples, dtype=np.uint8)
+
+def plot_gcurve(g):
+    plt.plot(g[BLUE], np.arange(256), "b")
+    plt.plot(g[GREEN], np.arange(256), "g")
+    plt.plot(g[RED], np.arange(256), "r")
+    plt.xlabel("$ln{E_i} + ln{\delta t_j}$")
+    plt.ylabel("$g(Z_ij)$")
+    plt.show()
+    plt.savefig("curve.png")
+    plt.clf()
 
 def gsolve(Z, log_t, l, w):
     n = 256
@@ -18,8 +34,8 @@ def gsolve(Z, log_t, l, w):
 
     A = np.zeros((N * P + n + 1, n + N))
     b = np.zeros((A.shape[0], 1))
-
     k = 0
+
     for i in range(N):
         for j in range(P):
             wij =  w[Z[i, j]]
@@ -39,25 +55,17 @@ def gsolve(Z, log_t, l, w):
 
     x = np.linalg.lstsq(A, b, rcond=None)[0]
     g = x[:n].flatten()
-    lE = x[n + 1:].flatten()
 
-    return g, lE
+    return g
 
-def gCurve(Z, log_t, l, w):
+def gcurve(Z, log_t, l, w):
     gs = []
     
     # b, g, r
     for i in range(3):
-        g, _ = gsolve(Z[:, :, i], log_t, l, w)
-        gs.append(g)
+        gs.append(gsolve(Z[:, :, i], log_t, l, w))
     
-    plt.plot(gs[0], np.arange(256), "b")
-    plt.plot(gs[1], np.arange(256), "g")
-    plt.plot(gs[2], np.arange(256), "r")
-    plt.title("g")
-    plt.show()
-    # plt.savefig("basdass.png")
-    # plt.clf()    
+    plot_gcurve(gs)
     return gs
 
 def genlE(Z, log_t, l, g, w):
@@ -68,25 +76,14 @@ def genlE(Z, log_t, l, g, w):
     return n / d
     
 
-def radianceMap(imgs, log_t, l, g, w):
+def radiance_map(imgs, log_t, l, g, w):
     P = len(imgs)
     height, width, _ = imgs[0].shape
     maps = []
 
     for i in range(3):
-        # lE.append(genlE(imgs[:, :, :, i], log_t, l, g[i], w))
         maps.append(np.exp(genlE(imgs[:, :, :, i], log_t, l, g[i], w)))
-
     maps = np.transpose(np.array(maps), (1, 2, 0))
-    
-    # print(lE[0].shape)
-    # maps = np.zeros([height, width, 3], dtype = np.uint8)
-
-    # for i in range(3):
-        # maps[:, :, i] = lE[i]
-
-    # maps = np.exp(maps)
-    # print(maps.shape, maps)
 
     return maps
         
@@ -95,15 +92,15 @@ def HDR(imgs, expTimes):
     imgs = np.array(imgs, dtype=np.uint8)
     samplePoints = 100
     l = 35
-    Z_b = sample(imgs[:, :, :, 0], samplePoints)
-    Z_g = sample(imgs[:, :, :, 1], samplePoints)
-    Z_r = sample(imgs[:, :, :, 2], samplePoints)
+    Z_b = sample(imgs[:, :, :, BLUE], samplePoints)
+    Z_g = sample(imgs[:, :, :, GREEN], samplePoints)
+    Z_r = sample(imgs[:, :, :, RED], samplePoints)
     Z = np.transpose(np.array([Z_b, Z_g, Z_r]), (2, 1, 0))
     log_t = np.log(expTimes)
     w = np.array([i if i <= 128 else 256 - i for i in range(256)], dtype=np.uint8)
 
-    g = gCurve(Z, log_t, l, w)
-    rad_map = radianceMap(imgs, log_t, l, g, w)
+    g = gcurve(Z, log_t, l, w)
+    rad_map = radiance_map(imgs, log_t, l, g, w)
 
     return rad_map
 
