@@ -3,10 +3,7 @@ import sys
 import cv2
 import numpy as np
 
-np.set_printoptions(threshold=sys.maxsize)
-RED = 2
-GREEN = 1
-BLUE = 0
+from const import *
 
 def grayscale(image):
     image = image.astype(int)

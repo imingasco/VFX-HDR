@@ -7,10 +7,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ExifTags
 
 import align
-
-BLUE = 0
-GREEN = 1
-RED = 2
+from const import *
 
 def sample(imgs, N=100):
     samples = []
