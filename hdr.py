@@ -4,6 +4,7 @@ import math
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image, ExifTags
 
 import align
 
@@ -24,7 +25,7 @@ def plot_gcurve(g):
     plt.xlabel("$ln{E_i} + ln{\delta t_j}$")
     plt.ylabel("$g(Z_ij)$")
     plt.show()
-    plt.savefig("curve.png")
+    # plt.savefig("curve.png")
     plt.clf()
 
 def gsolve(Z, log_t, l, w):
@@ -58,14 +59,16 @@ def gsolve(Z, log_t, l, w):
 
     return g
 
-def gcurve(Z, log_t, l, w):
+def gcurve(Z, log_t, l, w, plot=False):
     gs = []
     
     # b, g, r
     for i in range(3):
         gs.append(gsolve(Z[:, :, i], log_t, l, w))
     
-    plot_gcurve(gs)
+    if plot:
+        plot_gcurve(gs)
+
     return gs
 
 def genlE(Z, log_t, l, g, w):
@@ -85,44 +88,73 @@ def radiance_map(imgs, log_t, l, g, w):
         maps.append(np.exp(genlE(imgs[:, :, :, i], log_t, l, g[i], w)))
     maps = np.transpose(np.array(maps), (1, 2, 0))
 
-    return maps
-        
+    return maps     
 
-def HDR(imgs, expTimes):
+def HDR(imgs, exposure, plot=False, l=50):
     imgs = np.array(imgs, dtype=np.uint8)
     samplePoints = 100
-    l = 35
+
     Z_b = sample(imgs[:, :, :, BLUE], samplePoints)
     Z_g = sample(imgs[:, :, :, GREEN], samplePoints)
     Z_r = sample(imgs[:, :, :, RED], samplePoints)
     Z = np.transpose(np.array([Z_b, Z_g, Z_r]), (2, 1, 0))
-    log_t = np.log(expTimes)
+    log_t = np.log(exposure)
     w = np.array([i if i <= 128 else 256 - i for i in range(256)], dtype=np.uint8)
 
-    g = gcurve(Z, log_t, l, w)
+    g = gcurve(Z, log_t, l, w, plot)
     rad_map = radiance_map(imgs, log_t, l, g, w)
 
     return rad_map
 
-def test():
-    img_dir = "img/memorial"
+def main(args):
+    # Read images from input directory
+    try:
+        files = [os.path.join(args.input, filename) for filename in sorted(os.listdir(args.input))]
+    except OSError as e:
+        print(e)
+        print("Please check your input directory.")
+        exit(1)
+    
+    image_exts = ["png", "JPG", "jpg", "jpeg", "JPEG"]
     images = []
-    exp_time = [0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0]
-    # exp_time = [0.06666667, 0.00625, 0.5, 0.003125, 0.25, 0.025, 0.0015625, 0.0125, 0.0125, 1, 15, 2, 20, 30, 4, 8]
-    files = [os.path.join(img_dir, filename) for filename in sorted(os.listdir(img_dir))]
+    exposure = []
     for f in files:
         ext = f.split(".")[-1]
-        if ext == "png" or ext == "jpg" or ext == "JPG":
+        if ext in image_exts:
             images.append(cv2.imread(f))
-    print(f"fuck {images[0].shape}")
-    exp_time = [1 / t for t in exp_time]
-    aligned_images = align.align(images)
-    print(aligned_images[0].shape)
-    rad_map = HDR(aligned_images, exp_time)
-    print(rad_map.shape)
-    plt.imshow(np.log(rad_map[:, :, 1]))
-    plt.show()
-    cv2.imwrite("rad_map.png", np.log(rad_map)[:, :, 1])
+            # Ref: https://stackoverflow.com/questions/21697645/how-to-extract-metadata-from-an-image-using-python
+            pil_image = Image.open(f)
+            exif = { ExifTags.TAGS[k]: v for k, v in pil_image._getexif().items() if k in ExifTags.TAGS }
+            denominator, numerator = exif["ExposureTime"]
+            exposure.append(denominator / numerator)
+    if args.align:
+        print("Performing alignment...")
+        images = align.align(images, max_shift=args.shift)
+        print("Alignment done.")
+    print("Performing HDR algorithm...")
+    rad_map = HDR(images, exposure, plot=args.plot, l=args.l)
+    print("HDR done.")
+    if args.plot:
+        print("Showing the radiance map...")
+        plt.imshow(np.log(rad_map), cmap="jet")
+        plt.colorbar()
+        plt.show()
+        plt.clf()
+    print(f"Saving the result to {os.path.join(args.output, args.hdr)}")
+    cv2.imwrite(os.path.join(args.output, args.hdr), np.log(rad_map))
 
 if __name__ == "__main__":
-    test()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", help="Path to the directory containing source images", required=True)
+    parser.add_argument("-o", "--output", help="Path to the directory for the output images", required=True)
+    parser.add_argument("--hdr", help="Desired file name for the output hdr image", default="result.hdr")
+    parser.add_argument("-a", "--align", help="Images will be aligned before performing HDR if specified", action="store_false")
+    parser.add_argument("-p", "--plot", help="gcurves and radiance maps will be shown if specified", action="store_true")
+    parser.add_argument("-t", "--test", help="test mode", action="store_true")
+    parser.add_argument("-l", help="smoothing factor of the hdr function", default=50)
+    parser.add_argument("-s", "--shift", help="maximum shift for MTB algorithm", default=64)
+    args = parser.parse_args()
+    if args.test:
+        test()
+    else:
+        main(args)
