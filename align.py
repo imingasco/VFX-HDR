@@ -65,7 +65,7 @@ def align(images, max_shift=64):
     pyramid_level = int(np.log2(max_shift))
     for image in images[1:]:
         rshift, cshift = get_shift(images[0], image, pyramid_level)
-        # print(rshift, cshift)
+        print(rshift, cshift)
         # Layer-wise shift
         image_t = np.transpose(image, (2, 0, 1))
         output_image = np.zeros(image_t.shape)
@@ -75,7 +75,7 @@ def align(images, max_shift=64):
     return result
 
 def test():
-    parse_args
+    pass
 
 if __name__ == "__main__":
     test()

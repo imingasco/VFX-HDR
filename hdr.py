@@ -1,6 +1,5 @@
 import os
 import cv2
-import math
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +18,7 @@ def plot_gcurve(g):
     plt.plot(g[BLUE], np.arange(256), "b")
     plt.plot(g[GREEN], np.arange(256), "g")
     plt.plot(g[RED], np.arange(256), "r")
-    plt.xlabel("$ln{E_i} + ln{\delta t_j}$")
+    plt.xlabel("$ln{E_i} + ln{\Delta t_j}$")
     plt.ylabel("$g(Z_ij)$")
     plt.show()
     # plt.savefig("curve.png")
@@ -111,7 +110,7 @@ def main(args):
         print(e)
         print("Please check your input directory.")
         exit(1)
-    
+
     image_exts = ["png", "JPG", "jpg", "jpeg", "JPEG"]
     images = []
     exposure = []
@@ -129,6 +128,8 @@ def main(args):
         images = align.align(images, max_shift=args.shift)
         print("Alignment done.")
     print("Performing HDR algorithm...")
+    if type(args.l) == str:
+        args.l = int(args.l)
     rad_map = HDR(images, exposure, plot=args.plot, l=args.l)
     print("HDR done.")
     if args.plot:
@@ -140,6 +141,9 @@ def main(args):
     print(f"Saving the result to {os.path.join(args.output, args.hdr)}")
     cv2.imwrite(os.path.join(args.output, args.hdr), np.log(rad_map))
 
+def test():
+    pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="Path to the directory containing source images", required=True)
@@ -148,8 +152,8 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--align", help="Images will be aligned before performing HDR if specified", action="store_false")
     parser.add_argument("-p", "--plot", help="gcurves and radiance maps will be shown if specified", action="store_true")
     parser.add_argument("-t", "--test", help="test mode", action="store_true")
-    parser.add_argument("-l", help="smoothing factor of the hdr function", default=50)
-    parser.add_argument("-s", "--shift", help="maximum shift for MTB algorithm", default=64)
+    parser.add_argument("-l", help="smoothing factor of the hdr function", default=30)
+    parser.add_argument("-s", "--shift", help="maximum shift for MTB algorithm", default=32)
     args = parser.parse_args()
     if args.test:
         test()
