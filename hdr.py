@@ -8,6 +8,8 @@ from PIL import Image, ExifTags
 import align
 from const import *
 
+import tone_mapping as tm
+
 def sample(imgs, N=100):
     samples = []
     for img in imgs:
@@ -131,6 +133,7 @@ def main(args):
     if type(args.l) == str:
         args.l = int(args.l)
     rad_map = HDR(images, exposure, plot=args.plot, l=args.l)
+    print(rad_map)
     print("HDR done.")
     if args.plot:
         print("Showing the radiance map...")
@@ -150,6 +153,9 @@ def main(args):
         
     print(f"Saving the result to {os.path.join(args.output, args.hdr)}")
     cv2.imwrite(os.path.join(args.output, args.hdr), rad_map)
+    print(f"Tone mapping and saving png")
+    tm.ReinhardTonemap(rad_map)
+
 
 def test():
     pass

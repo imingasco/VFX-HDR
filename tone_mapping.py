@@ -95,6 +95,33 @@ def test():
     result = reinhard.dodge_and_burn()
     cv2.imwrite("output/reinhard_local_align_0.045.png", result)
 
+def ReinhardTonemap(hdrImg):
+    print(hdrImg)
+    print(hdrImg.shape)
+    print("Tonemaping using Reinhard's method ... ")
+    tonemapReinhard = cv2.createTonemapReinhard(1.5, -1.0, 0.3, 0.3)
+    ldrReinhard = tonemapReinhard.process(hdrImg)
+    cv2.imwrite("result.png", ldrReinhard * 255)
+    print("saved result.png")
+
+# def test():
+#     image = cv2.imread("output/result.hdr")
+#     # lum = luminance(image)
+#     # print(lum.shape)
+#     # print(np.where(lum != 0.0))
+
+#     globalOperator(image)
+
+def test_2():
+    image = cv2.imread("output/result.hdr")
+    image = np.array(image, dtype=np.float32)
+    print(image)
+    print(image.shape)
+    print("Tonemaping using Reinhard's method ... ")
+    tonemapReinhard = cv2.createTonemapReinhard(1.5, 0, 0, 0)
+    ldrReinhard = tonemapReinhard.process(image)
+    cv2.imwrite("result.jpg", ldrReinhard * 255)
+    print("saved result.jpg")
 
 if __name__ == "__main__":
     test()
