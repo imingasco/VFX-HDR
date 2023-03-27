@@ -12,7 +12,7 @@ def sample(imgs, N=100):
     samples = []
     for img in imgs:
         samples.append(cv2.resize(img,(10, 10)).flatten())
-    return np.array(samples, dtype=np.uint8)
+    return np.array(samples)
 
 def plot_gcurve(g):
     plt.plot(g[BLUE], np.arange(256), "b")
@@ -29,8 +29,8 @@ def gsolve(Z, log_t, l, w):
     N = np.size(Z, 0)
     P = np.size(Z, 1)
 
-    A = np.zeros((N * P + n + 1, n + N))
-    b = np.zeros((A.shape[0], 1))
+    A = np.zeros((N * P + n - 1, n + N), dtype=np.float32)
+    b = np.zeros((A.shape[0], 1), dtype=np.float32)
     k = 0
 
     for i in range(N):
@@ -38,16 +38,16 @@ def gsolve(Z, log_t, l, w):
             wij =  w[Z[i, j]]
             A[k, Z[i, j]] = wij
             A[k, n + i] = -wij
-            b[k,0] = wij * log_t[j]
+            b[k, 0] = wij * log_t[j]
             k += 1
     
     A[k, 127] = 1
     k = k + 1
 
-    for i in range(n - 1):
-        A[k, i] = w[i + 1] * l
-        A[k, i + 1] = -2 * l * w[i + 1]
-        A[k, i + 2] = w[i + 1] * l
+    for i in range(1, n - 1):
+        A[k, i - 1] = w[i] * l
+        A[k, i] = -2 * w[i] * l
+        A[k, i + 1] = w[i] * l
         k = k + 1
 
     x = np.linalg.lstsq(A, b, rcond=None)[0]
@@ -68,7 +68,7 @@ def gcurve(Z, log_t, l, w, plot=False):
     return gs
 
 def genlE(Z, log_t, l, g, w):
-    P, height, width = Z.shape
+    P, _, _ = Z.shape
     d = np.sum(w[Z], axis=0)
     n = np.sum(w[Z] * (g[Z] - log_t.reshape(P, 1, 1)), axis=0)
     d[d < 0.01] = 1
@@ -95,12 +95,12 @@ def HDR(imgs, exposure, plot=False, l=50):
     Z_r = sample(imgs[:, :, :, RED], samplePoints)
     Z = np.transpose(np.array([Z_b, Z_g, Z_r]), (2, 1, 0))
     log_t = np.log(exposure)
-    w = np.array([i if i <= 128 else 256 - i for i in range(256)], dtype=np.uint8)
+    w = np.array([i if i <= 128 else 256 - i for i in range(256)], dtype=np.float32)
 
     g = gcurve(Z, log_t, l, w, plot)
     rad_map = radiance_map(imgs, log_t, l, g, w)
 
-    return rad_map
+    return rad_map.astype(np.float32)
 
 def main(args):
     # Read images from input directory
@@ -121,6 +121,7 @@ def main(args):
             # Ref: https://stackoverflow.com/questions/21697645/how-to-extract-metadata-from-an-image-using-python
             pil_image = Image.open(f)
             exif = { ExifTags.TAGS[k]: v for k, v in pil_image._getexif().items() if k in ExifTags.TAGS }
+            print(exif["ExposureTime"])
             denominator, numerator = exif["ExposureTime"]
             exposure.append(denominator / numerator)
     if args.align:
@@ -134,12 +135,22 @@ def main(args):
     print("HDR done.")
     if args.plot:
         print("Showing the radiance map...")
-        plt.imshow(np.log(rad_map), cmap="jet")
+        plt.imshow(np.log(rad_map)[:, :, 0], cmap="jet")
         plt.colorbar()
         plt.show()
         plt.clf()
+        plt.imshow(np.log(rad_map)[:, :, 1], cmap="jet")
+        plt.colorbar()
+        plt.show()
+        plt.clf()
+        plt.imshow(np.log(rad_map)[:, :, 2], cmap="jet")
+        plt.colorbar()
+        plt.show()
+        plt.clf()
+        
+        
     print(f"Saving the result to {os.path.join(args.output, args.hdr)}")
-    cv2.imwrite(os.path.join(args.output, args.hdr), np.log(rad_map))
+    cv2.imwrite(os.path.join(args.output, args.hdr), rad_map)
 
 def test():
     pass
@@ -149,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", help="Path to the directory containing source images", required=True)
     parser.add_argument("-o", "--output", help="Path to the directory for the output images", required=True)
     parser.add_argument("--hdr", help="Desired file name for the output hdr image", default="result.hdr")
-    parser.add_argument("-a", "--align", help="Images will be aligned before performing HDR if specified", action="store_false")
+    parser.add_argument("-a", "--align", help="Images will be aligned before performing HDR if specified", action="store_true")
     parser.add_argument("-p", "--plot", help="gcurves and radiance maps will be shown if specified", action="store_true")
     parser.add_argument("-t", "--test", help="test mode", action="store_true")
     parser.add_argument("-l", help="smoothing factor of the hdr function", default=30)
