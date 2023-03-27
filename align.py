@@ -20,7 +20,7 @@ def downsample(image: np.ndarray, scale):
 
 def MTB_and_exclusive_bm(image):
     gray_image = grayscale(image)
-    median = int(np.median(gray_image))
+    median = np.median(gray_image)
     bitmap_image = (gray_image > median).astype(np.uint8) * 255
     exclusion_bitmap = threshold_noise(gray_image, median - 10, median + 10)
     return bitmap_image, exclusion_bitmap
@@ -46,8 +46,8 @@ def get_shift(ref_image, shift_image, level):
     ]
     for r, c in prob_shift:
         rshift, cshift = shift[0] + r, shift[1] + c
-        _shift_mtb = image_shift(shift_mtb, rshift, cshift)
-        _shift_exclusive_bm = image_shift(shift_exclusive_bm, rshift, cshift)
+        _shift_mtb = image_shift(shift_mtb.copy(), rshift, cshift)
+        _shift_exclusive_bm = image_shift(shift_exclusive_bm.copy(), rshift, cshift)
         diff = cv2.bitwise_xor(ref_mtb, _shift_mtb)
         diff = cv2.bitwise_and(diff, ref_exclusive_bm)
         diff = cv2.bitwise_and(diff, _shift_exclusive_bm)
@@ -58,12 +58,24 @@ def get_shift(ref_image, shift_image, level):
 
     return best_shift
 
+def find_median_sum(images):
+    pixel_sum = []
+    for image in images:
+        pixel_sum.append(np.sum(image))
+    sort_pixel_sum = sorted(pixel_sum)
+    median = sort_pixel_sum[len(pixel_sum) // 2]
+    return np.where(pixel_sum == median)[0][0]
+
 def align(images, max_shift=64):
-    # Let's pick the first image as reference image
-    result = [images[0]]
+    # Let's pick image with median pixel value sum as reference
+    base_index = find_median_sum(images)
+    result = []
     pyramid_level = int(np.log2(max_shift))
-    for image in images[1:]:
-        rshift, cshift = get_shift(images[0], image, pyramid_level)
+    for i, image in enumerate(images):
+        if i == base_index:
+            result.append(image)
+            continue
+        rshift, cshift = get_shift(images[base_index], image, pyramid_level)
         print(rshift, cshift)
         # Layer-wise shift
         image_t = np.transpose(image, (2, 0, 1))
@@ -74,8 +86,24 @@ def align(images, max_shift=64):
     return result
 
 def test():
-    img = cv2.imread("img/exposures/img01.jpg")
-    cv2.imwrite("output/gray_img01.jpg", grayscale(img))
+    images = []
+    output_file = []
+    img_dir = "img/pic2"
+    output_dir = "output"
+    files = [os.path.join(img_dir, filename) for filename in sorted(os.listdir(img_dir))]
+    for f in files:
+        ext = f.split(".")[-1]
+        filename = f.split("/")[-1]
+        if ext == "txt":
+            continue
+        images.append(cv2.imread(f))
+        output_file.append(f"aligned_{filename}")
+    print(output_file)
+    result = align(images)
+    for i, img in enumerate(result):
+        cv2.imwrite(f"{output_dir}/{output_file[i]}", img)
+
+        
 
 if __name__ == "__main__":
     test()

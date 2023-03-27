@@ -121,7 +121,6 @@ def main(args):
             # Ref: https://stackoverflow.com/questions/21697645/how-to-extract-metadata-from-an-image-using-python
             pil_image = Image.open(f)
             exif = { ExifTags.TAGS[k]: v for k, v in pil_image._getexif().items() if k in ExifTags.TAGS }
-            print(exif["ExposureTime"])
             denominator, numerator = exif["ExposureTime"]
             exposure.append(denominator / numerator)
     if args.align:
