@@ -66,7 +66,7 @@ def find_median_sum(images):
     median = sort_pixel_sum[len(pixel_sum) // 2]
     return np.where(pixel_sum == median)[0][0]
 
-def align(images, max_shift=64):
+def align(images, max_shift=64, output_dir=None):
     # Let's pick image with median pixel value sum as reference
     base_index = find_median_sum(images)
     result = []
@@ -76,7 +76,7 @@ def align(images, max_shift=64):
             result.append(image)
             continue
         rshift, cshift = get_shift(images[base_index], image, pyramid_level)
-        print(rshift, cshift)
+        # print(rshift, cshift)
         # Layer-wise shift
         image_t = np.transpose(image, (2, 0, 1))
         output_image = np.zeros(image_t.shape)
@@ -102,8 +102,6 @@ def test():
     result = align(images)
     for i, img in enumerate(result):
         cv2.imwrite(f"{output_dir}/{output_file[i]}", img)
-
-        
 
 if __name__ == "__main__":
     test()
