@@ -155,7 +155,7 @@ def main(args):
     print("Performing Reinhard's algorithm (SIGGRAPH 2002)...")
     reinhard = tm.Reinhard_2022(rad_map, alpha=0.18)
     global_result = reinhard.global_op()
-    reinhard.adjust_alpha(0.09)
+    reinhard.adjust_alpha(0.06)
     local_result = reinhard.dodge_and_burn()
     global_ldr_path = os.path.join(args.output, f"reinhard_2002_global_{args.ldr}.png")
     local_ldr_path = os.path.join(args.output, f"reinhard_2002_local_{args.ldr}.png")
